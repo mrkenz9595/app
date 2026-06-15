@@ -29,7 +29,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ASSETS_URL: ${{ github.event.release.assets_url }}
-        python: |
+        shell: python  # Định nghĩa chạy bằng môi trường Python
+        run: |         # Sử dụng từ khóa run thay vì dùng chữ python trực tiếp
           import os
           import json
           import requests
@@ -43,7 +44,7 @@ jobs:
           # Đọc file version.json cũ nếu có, nếu không thì tạo list rỗng
           json_file_path = "version.json"
           if os.path.exists(json_file_path):
-              with open(json_file_path, "r") as f:
+              with open(json_file_path, "r", encoding="utf-8") as f:
                   try:
                       app_list = json.load(f)
                   except:
