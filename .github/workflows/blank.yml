@@ -3,12 +3,13 @@ name: Auto Scan APKs and Update JSON
 on:
   release:
     types: [published]
+  workflow_dispatch: # Bổ sung dòng này để kích hoạt thủ công từ giao diện GitHub
 
 jobs:
   scan-apks:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Cần quyền để push file json lên repo
+      contents: write # Cần quyền để push file json ngược lại repo
 
     steps:
       - name: Checkout repository
@@ -28,20 +29,28 @@ jobs:
       - name: Process Release APKs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ASSETS_URL: ${{ github.event.release.assets_url }}
-        shell: python  # Định nghĩa chạy bằng môi trường Python
-        run: |         # Sử dụng từ khóa run thay vì dùng chữ python trực tiếp
+          # Nếu chạy thủ công, lấy URL của Release mới nhất trong repo làm mặc định
+          RELEASE_ASSETS_URL: ${{ github.event.release.assets_url || format('{0}/repos/{1}/releases/latest', github.api_url, github.repository) }}
+        shell: python
+        run: |
           import os
           import json
           import requests
           from androguard.core.bytecodes.apk import APK
 
-          # 1. Lấy danh sách tất cả các assets từ Release hiện tại
           headers = {"Authorization": f"token {os.environ['GITHUB_TOKEN']}"}
-          response = requests.get(os.environ['RELEASE_ASSETS_URL'], headers=headers)
-          assets = response.json()
+          assets_url = os.environ['RELEASE_ASSETS_URL']
 
-          # Đọc file version.json cũ nếu có, nếu không thì tạo list rỗng
+          # Nếu chạy thủ công, URL dạng /releases/latest trả về object chứa danh sách assets, cần lọc lại
+          response = requests.get(assets_url, headers=headers)
+          release_data = response.json()
+          
+          if "assets" in release_data:
+              assets = release_data["assets"]
+          else:
+              assets = release_data  # Trường hợp tự động chạy từ webhook release sẽ là một mảng assets sẵn
+
+          # Đọc file version.json cũ nếu có
           json_file_path = "version.json"
           if os.path.exists(json_file_path):
               with open(json_file_path, "r", encoding="utf-8") as f:
@@ -52,29 +61,27 @@ jobs:
           else:
               app_list = []
 
-          # Chuyển app_list thành dict với key là packageName để dễ cập nhật/xóa
           app_dict = {app['packageName']: app for app in app_list}
 
-          # 2. Lọc ra các file .apk và xử lý
+          # Xử lý các file .apk tìm thấy
           for asset in assets:
               file_name = asset['name']
               if file_name.endswith('.apk'):
                   download_url = asset['browser_download_url']
                   print(f"Đang xử lý file: {file_name}...")
 
-                  # Tải file APK tạm thời về để đọc thông tin
+                  # Tải file APK tạm thời
                   apk_data = requests.get(download_url).content
                   with open(file_name, "wb") as f:
                       f.write(apk_data)
 
                   try:
-                      # Dùng androguard để phân tích file APK
+                      # Đọc thông tin APK
                       apk = APK(file_name)
                       package_name = apk.get_package()
                       version_code = int(apk.get_androidversion_code())
                       version_name = apk.get_androidversion_name()
 
-                      # Cập nhật hoặc thêm mới vào dict
                       app_dict[package_name] = {
                           "packageName": package_name,
                           "versionCode": version_code,
@@ -86,11 +93,10 @@ jobs:
                   except Exception as e:
                       print(f"Lỗi khi đọc file {file_name}: {e}")
                   finally:
-                      # Xóa file APK tạm sau khi đọc xong để nhẹ ổ đĩa
                       if os.path.exists(file_name):
                           os.remove(file_name)
 
-          # 3. Ghi lại dữ liệu mới vào file version.json
+          # Ghi lại dữ liệu mới vào file version.json
           new_app_list = list(app_dict.values())
           with open(json_file_path, "w", encoding="utf-8") as f:
               json.dump(new_app_list, f, indent=2, ensure_ascii=False)
@@ -100,5 +106,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@://github.com"
           git add version.json
-          # Chỉ commit nếu file json có sự thay đổi
           git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release" && git push origin master)
