@@ -3,7 +3,7 @@ name: Auto Scan APKs and Update JSON
 on:
   release:
     types: [published]
-  workflow_dispatch: # Bổ sung dòng này để kích hoạt thủ công từ giao diện GitHub
+  workflow_dispatch: # Kích hoạt thủ công từ giao diện GitHub
 
 jobs:
   scan-apks:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: master
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,7 +24,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install androguard requests
+          # Giới hạn phiên bản 3.x để tránh xung đột cấu trúc import của bản 4.x mới
+          pip install androguard==3.4.0a1 requests
 
       - name: Process Release APKs
         env:
@@ -41,7 +42,7 @@ jobs:
           headers = {"Authorization": f"token {os.environ['GITHUB_TOKEN']}"}
           assets_url = os.environ['RELEASE_ASSETS_URL']
 
-          # Nếu chạy thủ công, URL dạng /releases/latest trả về object chứa danh sách assets, cần lọc lại
+          # Lấy danh sách tệp đính kèm từ Release
           response = requests.get(assets_url, headers=headers)
           release_data = response.json()
           
@@ -104,6 +105,6 @@ jobs:
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@://github.com"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add version.json
-          git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release" && git push origin master)
+          git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release" && git push origin main)
