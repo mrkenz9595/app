@@ -14,8 +14,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: main
+        # Đã bỏ dòng "ref: main" để GitHub tự động lấy nhánh mặc định (master)
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,13 +23,11 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Giới hạn phiên bản 3.x để tránh xung đột cấu trúc import của bản 4.x mới
           pip install androguard==3.4.0a1 requests
 
       - name: Process Release APKs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Nếu chạy thủ công, lấy URL của Release mới nhất trong repo làm mặc định
           RELEASE_ASSETS_URL: ${{ github.event.release.assets_url || format('{0}/repos/{1}/releases/latest', github.api_url, github.repository) }}
         shell: python
         run: |
@@ -42,16 +39,14 @@ jobs:
           headers = {"Authorization": f"token {os.environ['GITHUB_TOKEN']}"}
           assets_url = os.environ['RELEASE_ASSETS_URL']
 
-          # Lấy danh sách tệp đính kèm từ Release
           response = requests.get(assets_url, headers=headers)
           release_data = response.json()
           
           if "assets" in release_data:
               assets = release_data["assets"]
           else:
-              assets = release_data  # Trường hợp tự động chạy từ webhook release sẽ là một mảng assets sẵn
+              assets = release_data
 
-          # Đọc file version.json cũ nếu có
           json_file_path = "version.json"
           if os.path.exists(json_file_path):
               with open(json_file_path, "r", encoding="utf-8") as f:
@@ -64,20 +59,17 @@ jobs:
 
           app_dict = {app['packageName']: app for app in app_list}
 
-          # Xử lý các file .apk tìm thấy
           for asset in assets:
               file_name = asset['name']
               if file_name.endswith('.apk'):
                   download_url = asset['browser_download_url']
                   print(f"Đang xử lý file: {file_name}...")
 
-                  # Tải file APK tạm thời
                   apk_data = requests.get(download_url).content
                   with open(file_name, "wb") as f:
                       f.write(apk_data)
 
                   try:
-                      # Đọc thông tin APK
                       apk = APK(file_name)
                       package_name = apk.get_package()
                       version_code = int(apk.get_androidversion_code())
@@ -97,7 +89,6 @@ jobs:
                       if os.path.exists(file_name):
                           os.remove(file_name)
 
-          # Ghi lại dữ liệu mới vào file version.json
           new_app_list = list(app_dict.values())
           with open(json_file_path, "w", encoding="utf-8") as f:
               json.dump(new_app_list, f, indent=2, ensure_ascii=False)
@@ -107,4 +98,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add version.json
-          git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release" && git push origin main)
+          # Tự động đẩy code lên nhánh hiện tại thay vì ép buộc nhánh main
+          git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release" && git push)
