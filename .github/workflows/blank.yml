@@ -31,7 +31,8 @@ jobs:
           import os
           import json
           import requests
-          from androguard import APK
+          # Sửa đường dẫn import chuẩn theo cấu trúc Androguard 4.x
+          from androguard.core.apk import APK
 
           headers = {
               "Authorization": f"token {os.environ['GITHUB_TOKEN']}",
@@ -64,7 +65,7 @@ jobs:
           else:
               app_list = []
 
-          # 1. Đồng bộ xóa: Loại bỏ app không còn trên Release
+          # 1. Đồng bộ xóa: Chỉ giữ lại các ứng dụng có file tồn tại trên Release
           filtered_app_list = []
           for app in app_list:
               if app.get('fileName') in current_release_apk_files:
@@ -74,7 +75,7 @@ jobs:
 
           app_dict = {app['packageName']: app for app in filtered_app_list}
 
-          # 2. Đồng bộ thêm / cập nhật: Tải và quét tất cả APK đang có
+          # 2. Đồng bộ thêm / cập nhật: Quét tất cả APK hiện có và thêm vào json
           for asset in assets:
               file_name = asset['name']
               if file_name.endswith('.apk'):
@@ -82,20 +83,20 @@ jobs:
                   print(f"Đang quét file: {file_name}...")
                   
                   try:
-                      # Tải file cục bộ phục vụ phân tích
+                      # Tải file về môi trường tạm thời
                       with requests.get(download_url, stream=True) as r:
                           r.raise_for_status()
                           with open(file_name, "wb") as f:
                               for chunk in r.iter_content(chunk_size=8192):
                                   f.write(chunk)
 
-                      # Sử dụng Androguard phiên bản mới
+                      # Sử dụng các hàm lấy thông tin của Androguard 4.x
                       apk = APK(file_name)
-                      package_name = str(apk.package_name)
-                      version_code = int(apk.version_code)
-                      version_name = str(apk.version_name)
+                      package_name = str(apk.get_package())
+                      version_code = int(apk.get_androidversion_code())
+                      version_name = str(apk.get_androidversion_name())
 
-                      # Ghi đè hoặc thêm mới vào từ điển kết quả
+                      # Tạo hoặc cập nhật thông tin ứng dụng vào dictionary
                       app_dict[package_name] = {
                           "packageName": package_name,
                           "versionCode": version_code,
@@ -103,14 +104,14 @@ jobs:
                           "fileName": file_name,
                           "apkUrl": download_url
                       }
-                      print(f"Quét thành công: {package_name} (Phiên bản: {version_name} - Code: {version_code})")
+                      print(f"Quét thành công và ghi nhận: {package_name} (Phiên bản: {version_name} - Code: {version_code})")
                   except Exception as e:
                       print(f"Lỗi phân tích file {file_name}: {e}")
                   finally:
                       if os.path.exists(file_name):
                           os.remove(file_name)
 
-          # Ghi ngược lại danh sách vào tập tin JSON
+          # Ghi đè danh sách mới cập nhật lại vào tập tin JSON
           new_app_list = list(app_dict.values())
           with open(json_file_path, "w", encoding="utf-8") as f:
               json.dump(new_app_list, f, indent=2, ensure_ascii=False)
@@ -118,6 +119,6 @@ jobs:
       - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@://github.com"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add version.json
           git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release (Sync Add/Delete)" && git push)
