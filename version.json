@@ -7,13 +7,6 @@
     "apkUrl": "https://github.com/mrkenz9595/app/releases/download/1.0/getout.apk"
   },
   {
-    "packageName": "com.smartkaraoke.playerpro",
-    "versionCode": 415,
-    "versionName": "3.55",
-    "fileName": "SmartKaraokePlayerPRO_v3.55_RTD.apk",
-    "apkUrl": "https://github.com/mrkenz9595/app/releases/download/1.0/SmartKaraokePlayerPRO_v3.55_RTD.apk"
-  },
-  {
     "packageName": "com.nghenhin24h.vietplaytv",
     "versionCode": 15,
     "versionName": "2.4",
