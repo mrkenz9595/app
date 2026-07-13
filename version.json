@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "packageName": "com.nghenhin24h.vietplaytv",
+    "versionCode": 15,
+    "versionName": "2.4",
+    "fileName": "VietPlayTV.apk",
+    "apkUrl": "https://cdn.jsdelivr.net/gh/mrkenz9595/app@master/VietPlayTV.apk"
+  }
+]
