@@ -4,13 +4,13 @@
     "versionCode": 2,
     "versionName": "1.0.8",
     "fileName": "getout.apk",
-    "apkUrl": "https://github.com/mrkenz9595/app/releases/download/1.0/getout.apk"
+    "apkUrl": "https://jsdelivr.netmrkenz9595/app@1.0/getout.apk"
   },
   {
     "packageName": "com.nghenhin24h.vietplaytv",
     "versionCode": 15,
     "versionName": "2.4",
     "fileName": "VietPlayTV.apk",
-    "apkUrl": "https://github.com/mrkenz9595/app/releases/download/1.0/VietPlayTV.apk"
+    "apkUrl": "https://jsdelivr.netmrkenz9595/app@1.0/VietPlayTV.apk"
   }
 ]
